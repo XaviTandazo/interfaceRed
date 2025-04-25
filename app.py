@@ -8,9 +8,15 @@ def connect_router():
     ssh = paramiko.SSHClient()
     ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
     
-    # Realizamos la conexión SSH utilizando las configuraciones predeterminadas
-    ssh.connect('192.168.1.1', username='admin', password='cisco')
+    # Establece una conexión con configuraciones específicas de seguridad
+    transport = paramiko.Transport(('192.168.1.1', 22))
+    transport.get_security_options().ciphers = ['aes128-cbc']
+    transport.get_security_options().kex = ['diffie-hellman-group14-sha1']
+    transport.get_security_options().host_key_algorithms = ['ssh-rsa']
     
+    transport.connect(username='admin', password='cisco')
+    
+    ssh._transport = transport
     return ssh
 
 # Página principal
@@ -22,12 +28,10 @@ def index():
 @app.route('/add_device', methods=['POST'])
 def add_device():
     mac_address = request.form['mac_address']
-    mac_address = mac_address.lower()  # Convertimos la MAC a minúsculas para evitar errores de mayúsculas/minúsculas
-    
     # Conexión SSH al router y actualización de la lista MAC
     ssh = connect_router()
-    # Aquí el comando real para agregar la MAC a la lista de dispositivos permitidos
-    ssh.exec_command(f'arp access-list {mac_address} permit')
+    command = f"mac access-list extended ARP_Packet permit host {mac_address}"
+    ssh.exec_command(command)  # Ejecutar comando para permitir MAC
     ssh.close()
     return redirect(url_for('index'))
 
@@ -35,12 +39,20 @@ def add_device():
 @app.route('/block_device', methods=['POST'])
 def block_device():
     mac_address = request.form['mac_address']
-    mac_address = mac_address.lower()  # Convertimos la MAC a minúsculas para evitar errores de mayúsculas/minúsculas
-    
     # Conexión SSH al router y actualización de las reglas de filtrado
     ssh = connect_router()
-    # Aquí el comando real para bloquear la MAC en el router
-    ssh.exec_command(f'arp access-list {mac_address} deny')
+    
+    # Comando para bloquear la MAC
+    command = f"mac access-list extended ARP_Packet deny host {mac_address}"
+    ssh.exec_command(command)  # Ejecutar comando para bloquear MAC
+
+    # Aplicar la lista de acceso a la interfaz (ajusta 'gi 0/1' con la interfaz adecuada)
+    apply_acl_command = "interface gi 0/1"
+    ssh.exec_command(apply_acl_command)
+    ssh.exec_command(f"bridge-group input-address-list ARP_Packet")
+
+    # Salir de la configuración
+    ssh.exec_command("end")
     ssh.close()
     return redirect(url_for('index'))
 
