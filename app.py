@@ -55,7 +55,7 @@ def add_device():
 # Bloquear un dispositivo
 @app.route('/block_device', methods=['POST'])
 def block_device():
-    mac = request.form['mac']  # Cambié 'mac' aquí
+    mac = request.form['mac_address']  # Cambié 'mac_address' aquí
     try:
         ssh = connect_router()
         block_mac(ssh, mac)
