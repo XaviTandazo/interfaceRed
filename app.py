@@ -6,17 +6,11 @@ app = Flask(__name__)
 # Función para conectarse al router con parámetros de compatibilidad
 def connect_router():
     ssh = paramiko.SSHClient()
-    ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-    
-    # Establece una conexión con configuraciones específicas de seguridad
-    transport = paramiko.Transport(('192.168.1.1', 22))
-    transport.get_security_options().ciphers = ['aes128-cbc']
-    transport.get_security_options().kex = ['diffie-hellman-group14-sha1']
-    transport.get_security_options().host_key_algorithms = ['ssh-rsa']
-    
-    transport.connect(username='admin', password='cisco')
-    
-    ssh._transport = transport
+    ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())  # Acepta automáticamente la clave del host
+
+    # Establece una conexión SSH con el router
+    ssh.connect('192.168.1.1', username='admin', password='cisco')
+
     return ssh
 
 # Página principal
