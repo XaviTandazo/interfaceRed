@@ -16,22 +16,28 @@ def connect_router():
 # Comando para bloquear una MAC usando class-map y policy-map
 def block_mac(ssh, mac):
     try:
-        # Comandos para crear un class-map y un policy-map para bloquear la MAC
-        class_map_command = f"""
-        class-map match any unwanted-pc's
-        match source-address mac {mac}
-        """
+        # Eliminar los dos puntos y poner los puntos entre bloques de 4 caracteres
+        mac = mac.replace(":", "")
+        mac = '.'.join([mac[i:i+4] for i in range(0, len(mac), 4)])
+
+        # Iniciar el modo de configuración
+        ssh.exec_command("conf t\n")
         
-        policy_map_command = f"""
-        policy-map block
-        class unwanted-pc's
-        drop
-        """
+        # Configurar el class-map
+        class_map_command = f"class-map match-any unwanted-pc\nmatch source-address mac {mac}\nexit"
+        ssh.exec_command(class_map_command)
         
-        interface_command = "interface gi 0/1\nservice-policy input block\n"
+        # Configurar el policy-map
+        policy_map_command = "policy-map block\nclass unwanted-pc\ndrop\nexit"
+        ssh.exec_command(policy_map_command)
         
-        # Ejecutar los comandos en el router
-        ssh.exec_command(f"conf t\n{class_map_command}\n{policy_map_command}\n{interface_command}\nend\n")
+        # Aplicar el policy-map a la interfaz
+        interface_command = "interface FastEthernet1/0\nservice-policy input block\nexit"
+        ssh.exec_command(interface_command)
+        
+        # Salir de la configuración
+        ssh.exec_command("end\n")
+        
         return True
     except Exception as e:
         print(f"Error al bloquear la MAC: {e}")
