@@ -1,25 +1,42 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Control de Acceso a Red</title>
+    <title>Control de Acceso por MAC</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
 </head>
 <body>
-    <h1>Gestión de Dispositivos</h1>
-    
-    <h2>Agregar Dispositivo</h2>
-    <form method="POST" action="/add_device">
-        <label for="mac_address">Dirección MAC:</label>
-        <input type="text" id="mac_address" name="mac_address" required>
-        <button type="submit">Agregar</button>
-    </form>
-    
-    <h2>Bloquear Dispositivo</h2>
-    <form method="POST" action="/block_device">
-        <label for="mac_address">Dirección MAC:</label>
-        <input type="text" id="mac_address" name="mac_address" required>
-        <button type="submit">Bloquear</button>
-    </form>
+    <div class="container">
+        <h1 class="mt-5">Control de Acceso por Dirección MAC</h1>
+
+        <!-- Formulario para agregar un dispositivo autorizado -->
+        <div class="mt-4">
+            <h3>Agregar un dispositivo autorizado</h3>
+            <form action="/add_device" method="POST">
+                <div class="form-group">
+                    <label for="mac_address">Dirección MAC del dispositivo:</label>
+                    <input type="text" class="form-control" id="mac_address" name="mac_address" required placeholder="Ejemplo: 00:50:79:66:68:00">
+                </div>
+                <button type="submit" class="btn btn-success">Agregar</button>
+            </form>
+        </div>
+
+        <!-- Formulario para bloquear un dispositivo -->
+        <div class="mt-4">
+            <h3>Bloquear un dispositivo</h3>
+            <form action="/block_device" method="POST">
+                <div class="form-group">
+                    <label for="mac_address">Dirección MAC del dispositivo a bloquear:</label>
+                    <input type="text" class="form-control" id="mac_address" name="mac_address" required placeholder="Ejemplo: 00:50:79:66:68:00">
+                </div>
+                <button type="submit" class="btn btn-danger">Bloquear</button>
+            </form>
+        </div>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.9.3/dist/umd/popper.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
 </body>
 </html>
