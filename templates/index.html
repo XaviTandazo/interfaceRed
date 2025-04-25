@@ -33,6 +33,13 @@
                 <button type="submit" class="btn btn-danger">Bloquear</button>
             </form>
         </div>
+
+        <!-- Mostrar mensajes de estado -->
+        {% if message %}
+        <div class="alert alert-info mt-4">
+            {{ message }}
+        </div>
+        {% endif %}
     </div>
 
     <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>

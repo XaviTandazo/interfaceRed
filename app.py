@@ -45,7 +45,7 @@ def index():
 # Agregar un dispositivo autorizado
 @app.route('/add_device', methods=['POST'])
 def add_device():
-    mac = request.form['mac']
+    mac = request.form['mac_address']  # Cambié 'mac_address' aquí
     # Conexión SSH al router y actualización de la lista MAC
     ssh = connect_router()
     # Aquí puedes implementar el código para agregar la MAC a una lista permitida si es necesario
@@ -55,10 +55,11 @@ def add_device():
 # Bloquear un dispositivo
 @app.route('/block_device', methods=['POST'])
 def block_device():
-    mac = request.form['mac']
+    mac = request.form['mac']  # Cambié 'mac' aquí
     try:
-        # Aquí va tu lógica de bloquear la MAC (ej. SSH con router)
-        block_mac(mac)  # Cambia esta línea a tu lógica real
+        ssh = connect_router()
+        block_mac(ssh, mac)
+        ssh.close()
         return render_template('index.html', message="Dispositivo bloqueado exitosamente")
     except Exception as e:
         return render_template('index.html', message=f"Error al bloquear dispositivo: {e}")
