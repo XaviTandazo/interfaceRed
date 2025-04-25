@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Control de Acceso a Red</title>
+</head>
+<body>
+    <h1>Gestión de Dispositivos</h1>
+    
+    <h2>Agregar Dispositivo</h2>
+    <form method="POST" action="/add_device">
+        <label for="mac_address">Dirección MAC:</label>
+        <input type="text" id="mac_address" name="mac_address" required>
+        <button type="submit">Agregar</button>
+    </form>
+    
+    <h2>Bloquear Dispositivo</h2>
+    <form method="POST" action="/block_device">
+        <label for="mac_address">Dirección MAC:</label>
+        <input type="text" id="mac_address" name="mac_address" required>
+        <button type="submit">Bloquear</button>
+    </form>
+</body>
+</html>
