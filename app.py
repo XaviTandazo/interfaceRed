@@ -62,14 +62,19 @@ def add_device():
 @app.route('/block_device', methods=['POST'])
 def block_device():
     mac_address = request.form['mac_address']
-    # Conexión SSH al router y ejecución del bloqueo de la MAC
-    ssh = connect_router()
-    success = block_mac(ssh, mac_address)
-    ssh.close()
-    if success:
-        return redirect(url_for('index'))
-    else:
-        return f"Error al bloquear la MAC {mac_address}", 500
+    try:
+        # Conexión SSH al router y ejecución del bloqueo de la MAC
+        ssh = connect_router()
+        success = block_mac(ssh, mac_address)
+        ssh.close()
+        if success:
+            return redirect(url_for('index'))
+        else:
+            return f"Error al bloquear la MAC {mac_address}", 500
+    except Exception as e:
+        # Si ocurre un error, se mostrará en el registro
+        app.logger.error(f"Error al bloquear la MAC: {e}")
+        return f"Error al bloquear la MAC: {e}", 500
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0')
