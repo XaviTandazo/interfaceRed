@@ -14,12 +14,12 @@ def connect_router():
     return ssh
 
 # Comando para bloquear una MAC usando class-map y policy-map
-def block_mac(ssh, mac_address):
+def block_mac(ssh, mac):
     try:
         # Comandos para crear un class-map y un policy-map para bloquear la MAC
         class_map_command = f"""
         class-map match any unwanted-pc's
-        match source-address mac {mac_address}
+        match source-address mac {mac}
         """
         
         policy_map_command = f"""
@@ -45,7 +45,7 @@ def index():
 # Agregar un dispositivo autorizado
 @app.route('/add_device', methods=['POST'])
 def add_device():
-    mac_address = request.form['mac_address']
+    mac = request.form['mac']
     # Conexión SSH al router y actualización de la lista MAC
     ssh = connect_router()
     # Aquí puedes implementar el código para agregar la MAC a una lista permitida si es necesario
