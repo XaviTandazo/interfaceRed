@@ -3,18 +3,14 @@ import paramiko
 
 app = Flask(__name__)
 
-# Función para conectarse al router con configuraciones compatibles
+# Función para conectarse al router con parámetros de compatibilidad
 def connect_router():
     ssh = paramiko.SSHClient()
     ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-
-    transport = paramiko.Transport(('192.168.1.1', 22))
-    transport.get_security_options().ciphers = ['aes128-cbc']
-    transport.get_security_options().kex = ['diffie-hellman-group14-sha1']
-    transport.get_security_options().host_key_algorithms = ['ssh-rsa']
-
-    transport.connect(username='admin', password='cisco')
-    ssh._transport = transport
+    
+    # Realizamos la conexión SSH utilizando las configuraciones predeterminadas
+    ssh.connect('192.168.1.1', username='admin', password='cisco')
+    
     return ssh
 
 # Página principal
@@ -22,41 +18,29 @@ def connect_router():
 def index():
     return render_template('index.html')
 
-# Agregar dispositivo autorizado (permitir MAC)
+# Agregar un dispositivo autorizado
 @app.route('/add_device', methods=['POST'])
 def add_device():
     mac_address = request.form['mac_address']
-    interface = "FastEthernet1/1"  # Puedes hacerlo dinámico si quieres
-
+    mac_address = mac_address.lower()  # Convertimos la MAC a minúsculas para evitar errores de mayúsculas/minúsculas
+    
+    # Conexión SSH al router y actualización de la lista MAC
     ssh = connect_router()
-    commands = f'''
-    conf t
-    interface {interface}
-    switchport port-security
-    switchport port-security mac-address {mac_address}
-    end
-    write memory
-    '''
-    ssh.exec_command(commands)
+    # Aquí el comando real para agregar la MAC a la lista de dispositivos permitidos
+    ssh.exec_command(f'arp access-list {mac_address} permit')
     ssh.close()
     return redirect(url_for('index'))
 
-# Bloquear dispositivo (ponerlo como no permitido)
+# Bloquear un dispositivo
 @app.route('/block_device', methods=['POST'])
 def block_device():
     mac_address = request.form['mac_address']
-    interface = "FastEthernet1/1"
-
+    mac_address = mac_address.lower()  # Convertimos la MAC a minúsculas para evitar errores de mayúsculas/minúsculas
+    
+    # Conexión SSH al router y actualización de las reglas de filtrado
     ssh = connect_router()
-    commands = f'''
-    conf t
-    interface {interface}
-    switchport port-security mac-address {mac_address}
-    switchport port-security violation shutdown
-    end
-    write memory
-    '''
-    ssh.exec_command(commands)
+    # Aquí el comando real para bloquear la MAC en el router
+    ssh.exec_command(f'arp access-list {mac_address} deny')
     ssh.close()
     return redirect(url_for('index'))
 
