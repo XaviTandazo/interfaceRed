@@ -1,7 +1,6 @@
 from flask import Flask, render_template, request, redirect, url_for
 import paramiko
 import time
-import re
 
 app = Flask(__name__)
 
@@ -9,8 +8,24 @@ app = Flask(__name__)
 def connect_router():
     ssh = paramiko.SSHClient()
     ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+
     try:
-        ssh.connect('192.168.1.1', username='admin', password='cisco')
+        # Usamos el comando SSH con las opciones necesarias
+        ssh.connect(
+            '192.168.1.1',
+            username='cisco',
+            password='cisco',
+            look_for_keys=False,  # No buscar claves en el sistema
+            allow_agent=False,    # Deshabilitar el uso del agente SSH
+            # Usar opciones específicas de conexión
+            disabled_algorithms={'kex': ['diffie-hellman-group1-sha1']},
+            # Alternativamente, con `paramiko` puedes hacer configuraciones como las siguientes:
+            hostkey_algo='ssh-rsa',  # Establecer el algoritmo de clave de host
+            key_exchange='diffie-hellman-group1-sha1',  # Algoritmo de intercambio de claves
+            cipher='aes128-cbc',  # Algoritmo de cifrado
+            auth_methods=['password']  # Método de autenticación
+        )
+        print("Conexión SSH establecida correctamente.")
         return ssh
     except Exception as e:
         print(f"Error al conectar al router: {e}")
@@ -29,40 +44,32 @@ def send_commands(channel, commands):
 # Comando para bloquear una MAC usando class-map y policy-map
 def block_mac(ssh, mac):
     try:
-        # Validar y formatear la MAC
         mac = mac.replace(":", "")
-        if not re.match(r'^[0-9a-fA-F]{12}$', mac):  # Asegura que sea una MAC válida
-            return False
-
         mac = '.'.join([mac[i:i+4] for i in range(0, len(mac), 4)])
 
         # Crear un shell interactivo
         shell = ssh.invoke_shell()
 
         # Enviar comandos al router
-        commands = [
-            "config t",
-            f"class-map match-any unwanted-pc",
-            f"match source-address mac {mac}",
-            "exit",
-            "policy-map block",
-            "class unwanted-pc",
-            "drop",
-            "exit",
-            "interface FastEthernet1/0",
-            "service-policy input block",
-            "exit",
-            "end",
-            "write memory"
-        ]
-        
-        # Enviar los comandos y obtener la salida
-        output = send_commands(shell, commands)
+        shell.send("config t\n")
+        shell.send(f"class-map match-any unwanted-pc\n")
+        shell.send(f"match source-address mac {mac}\n")
+        shell.send("exit\n")
+        shell.send("policy-map block\n")
+        shell.send("class unwanted-pc\n")
+        shell.send("drop\n")
+        shell.send("exit\n")
+        shell.send("interface FastEthernet1/0\n")
+        shell.send("service-policy input block\n")
+        shell.send("exit\n")
+        shell.send("end\n")
+        shell.send("write memory\n")
 
         # Esperar un momento para que todos los comandos se ejecuten
         time.sleep(2)
 
         # Leer la salida para depuración (opcional)
+        output = shell.recv(10000).decode()
         print(output)
 
         return True
@@ -79,25 +86,24 @@ def add_device():
     mac = request.form['mac_address']
     ssh = connect_router()
     if ssh:
-        success = block_mac(ssh, mac)
+        success = add_device_to_router(ssh, mac)  # Asegúrate de implementar esta función para agregar el dispositivo.
         ssh.close()
-        msg = "Dispositivo agregado exitosamente" if success else "Error al agregar la MAC"
-        return render_template('index.html', message=msg)
+        return render_template('index.html', message="Dispositivo autorizado correctamente." if success else "Error al autorizar el dispositivo.")
     else:
-        return render_template('index.html', message="No se pudo conectar al router.")
+        return render_template('index.html', message="Error al conectar al router.")
 
 @app.route('/block_device', methods=['POST'])
 def block_device():
     mac = request.form['mac_address']
     try:
         ssh = connect_router()
-        if not ssh:
-            return render_template('index.html', message="No se pudo conectar al router.")
-
-        success = block_mac(ssh, mac)
-        ssh.close()
-        msg = "Dispositivo bloqueado exitosamente" if success else "Error al bloquear la MAC"
-        return render_template('index.html', message=msg)
+        if ssh:
+            success = block_mac(ssh, mac)
+            ssh.close()
+            msg = "Dispositivo bloqueado exitosamente" if success else "Error al bloquear la MAC"
+            return render_template('index.html', message=msg)
+        else:
+            return render_template('index.html', message="Error al conectar al router.")
     except Exception as e:
         return render_template('index.html', message=f"Error: {e}")
 
