@@ -98,7 +98,7 @@ def permitir_mac_encendiendo_interfaz(mac_objetivo):
         if not interfaz_objetivo:
             print("[!] No se encontró en ARP, buscando interfaces administrativamente down...")
 
-            # 2. Buscar interfaces DOWN con show ip interface brief
+            # 2. Buscar interfaces DOWN
             child.sendline("show ip interface brief")
             child.expect("#")
             salida_interfaces = child.before.decode()
@@ -107,18 +107,19 @@ def permitir_mac_encendiendo_interfaz(mac_objetivo):
             for linea in salida_interfaces.splitlines():
                 if "administratively down" in linea.lower():
                     partes = linea.split()
-                    interfaces_down.append(partes[0])
+                    nombre_interfaz = partes[0]
+                    # Solo considerar interfaces Ethernet
+                    if nombre_interfaz.startswith("FastEthernet") or nombre_interfaz.startswith("GigabitEthernet"):
+                        interfaces_down.append(nombre_interfaz)
 
             if not interfaces_down:
-                print("[!] No hay interfaces apagadas. Nada que hacer.")
+                print("[!] No hay interfaces FastEthernet/GigabitEthernet apagadas. Nada que hacer.")
                 child.sendline("exit")
                 return
 
-            print(f"[✓] Interfaces encontradas apagadas: {interfaces_down}")
+            print(f"[✓] Interfaces Ethernet apagadas encontradas: {interfaces_down}")
             
-            # Asumimos que la MAC está en una de esas interfaces apagadas
-
-            # Tomamos la primera interfaz encontrada
+            # Tomamos la primera (en este caso sería FastEthernet1/0)
             interfaz_objetivo = interfaces_down[0]
 
         # 3. Encender la interfaz
@@ -128,7 +129,7 @@ def permitir_mac_encendiendo_interfaz(mac_objetivo):
         child.sendline("no shutdown")
         print(f"[✓] Interfaz {interfaz_objetivo} encendida")
 
-        # 4. Eliminar MAC del archivo de bloqueadas
+        # 4. Eliminar MAC del archivo bloqueado
         if os.path.exists(BLOCKED_MACS_FILE):
             with open(BLOCKED_MACS_FILE, 'r') as f:
                 macs = f.read().splitlines()
