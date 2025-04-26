@@ -78,12 +78,16 @@ def permitir_mac_encendiendo_interfaz(mac_objetivo):
         child.sendline("cisco")
         child.expect("#")
 
+        print("[✓] Conectado al router")
+
+        # 1. Ejecutar show arp
         child.sendline("show arp")
         child.expect("#")
         salida_arp = child.before.decode()
 
         ip_objetivo = None
         interfaz_objetivo = None
+
         for linea in salida_arp.splitlines():
             if mac_objetivo.lower() in linea.lower():
                 partes = linea.split()
@@ -91,31 +95,54 @@ def permitir_mac_encendiendo_interfaz(mac_objetivo):
                 interfaz_objetivo = partes[-1]
                 break
 
-        if not ip_objetivo or not interfaz_objetivo:
-            child.sendline("exit")
-            return f"No se encontró IP o interfaz para la MAC {mac_objetivo}"
+        if not interfaz_objetivo:
+            print("[!] No se encontró en ARP, buscando interfaces administrativamente down...")
 
+            # 2. Buscar interfaces DOWN con show ip interface brief
+            child.sendline("show ip interface brief")
+            child.expect("#")
+            salida_interfaces = child.before.decode()
+
+            interfaces_down = []
+            for linea in salida_interfaces.splitlines():
+                if "administratively down" in linea.lower():
+                    partes = linea.split()
+                    interfaces_down.append(partes[0])
+
+            if not interfaces_down:
+                print("[!] No hay interfaces apagadas. Nada que hacer.")
+                child.sendline("exit")
+                return
+
+            print(f"[✓] Interfaces encontradas apagadas: {interfaces_down}")
+            
+            # Asumimos que la MAC está en una de esas interfaces apagadas
+
+            # Tomamos la primera interfaz encontrada
+            interfaz_objetivo = interfaces_down[0]
+
+        # 3. Encender la interfaz
         child.sendline("configure terminal")
         child.expect("#")
         child.sendline(f"interface {interfaz_objetivo}")
         child.sendline("no shutdown")
+        print(f"[✓] Interfaz {interfaz_objetivo} encendida")
+
+        # 4. Eliminar MAC del archivo de bloqueadas
+        if os.path.exists(BLOCKED_MACS_FILE):
+            with open(BLOCKED_MACS_FILE, 'r') as f:
+                macs = f.read().splitlines()
+            macs = [m for m in macs if m.lower() != mac_objetivo.lower()]
+            with open(BLOCKED_MACS_FILE, 'w') as f:
+                f.write('\n'.join(macs))
+            print(f"[✓] MAC {mac_objetivo} eliminada de la lista bloqueada")
 
         child.sendline("end")
         child.sendline("exit")
-
-        # Quitar la MAC de la lista de bloqueados
-        if os.path.exists(BLOCKED_MACS_FILE):
-            with open(BLOCKED_MACS_FILE, 'r') as f:
-                macs = f.readlines()
-            macs = [mac.strip() for mac in macs if mac.strip() != mac_objetivo]
-            with open(BLOCKED_MACS_FILE, 'w') as f:
-                for mac in macs:
-                    f.write(mac + '\n')
-
-        return f"MAC {mac_objetivo} permitida correctamente."
+        print("[✓] Desconectado")
 
     except Exception as e:
-        return f"Error al permitir MAC: {e}"
+        print(f"[!] Error durante conexión o ejecución: {e}")
 
 # Rutas Flask
 
