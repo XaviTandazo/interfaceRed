@@ -1,110 +1,74 @@
 from flask import Flask, render_template, request, redirect, url_for
-import paramiko
-import time
+import subprocess
 
 app = Flask(__name__)
 
-# Función para conectarse al router y retornar el canal interactivo
-def connect_router():
-    ssh = paramiko.SSHClient()
-    ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+# Función para formatear la MAC al formato Cisco (XXXX.XXXX.XXXX)
+def formatear_mac(mac):
+    mac = mac.replace(":", "").replace("-", "").lower()
+    return '.'.join([mac[i:i+4] for i in range(0, len(mac), 4)])
+
+# Función para ejecutar comandos en el router vía SSH usando subprocess
+def bloquear_mac_desde_cli(mac):
+    mac = formatear_mac(mac)
+
+    comandos = f"""
+config t
+class-map match-any unwanted-pc
+match source-address mac {mac}
+exit
+policy-map block
+class unwanted-pc
+drop
+exit
+interface FastEthernet1/0
+service-policy input block
+exit
+end
+write memory
+exit
+"""
+
+    ssh_command = (
+        "ssh -o HostkeyAlgorithms=ssh-rsa "
+        "-o KexAlgorithms=diffie-hellman-group1-sha1 "
+        "-o Ciphers=aes128-cbc "
+        "-o PreferredAuthentications=password "
+        "cisco@192.168.1.1"
+    )
 
     try:
-        # Intentamos conectar usando los parámetros correctos de Kex y Hostkey
-        ssh.connect(
-            '192.168.1.1',
-            username='cisco',
-            password='cisco',
-            look_for_keys=False,  # No buscar claves en el sistema
-            allow_agent=False     # Deshabilitar el uso del agente SSH
+        process = subprocess.Popen(
+            ssh_command,
+            shell=True,
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True
         )
 
-        # Aseguramos que las configuraciones de intercambio de claves sean las correctas
-        transport = ssh.get_transport()
-        transport.set_kex_algorithms(['diffie-hellman-group1-sha1'])
-        transport.set_host_key_algorithm('ssh-rsa')
+        output, error = process.communicate(input=comandos, timeout=20)
 
-        print("Conexión SSH establecida correctamente.")
-        return ssh
-    except Exception as e:
-        print(f"Error al conectar al router: {e}")
-        return None
-
-# Ejecutar comandos en un canal interactivo y retornar salida
-def send_commands(channel, commands):
-    output = ""
-    for cmd in commands:
-        channel.send(cmd + "\n")
-        time.sleep(1)  # Espera para que el router procese el comando
-        while channel.recv_ready():
-            output += channel.recv(1024).decode()
-    return output
-
-# Comando para bloquear una MAC usando class-map y policy-map
-def block_mac(ssh, mac):
-    try:
-        mac = mac.replace(":", "")
-        mac = '.'.join([mac[i:i+4] for i in range(0, len(mac), 4)])
-
-        # Crear un shell interactivo
-        shell = ssh.invoke_shell()
-
-        # Enviar comandos al router
-        shell.send("config t\n")
-        shell.send(f"class-map match-any unwanted-pc\n")
-        shell.send(f"match source-address mac {mac}\n")
-        shell.send("exit\n")
-        shell.send("policy-map block\n")
-        shell.send("class unwanted-pc\n")
-        shell.send("drop\n")
-        shell.send("exit\n")
-        shell.send("interface FastEthernet1/0\n")
-        shell.send("service-policy input block\n")
-        shell.send("exit\n")
-        shell.send("end\n")
-        shell.send("write memory\n")
-
-        # Esperar un momento para que todos los comandos se ejecuten
-        time.sleep(2)
-
-        # Leer la salida para depuración (opcional)
-        output = shell.recv(10000).decode()
+        print("=== SALIDA DEL ROUTER ===")
         print(output)
+        print("=== ERRORES ===")
+        print(error)
 
-        return True
+        return process.returncode == 0
     except Exception as e:
-        print(f"Error al bloquear la MAC: {e}")
+        print(f"Error al ejecutar SSH: {e}")
         return False
 
 @app.route('/')
 def index():
     return render_template('index.html')
 
-@app.route('/add_device', methods=['POST'])
-def add_device():
-    mac = request.form['mac_address']
-    ssh = connect_router()
-    if ssh:
-        success = add_device_to_router(ssh, mac)  # Asegúrate de implementar esta función para agregar el dispositivo.
-        ssh.close()
-        return render_template('index.html', message="Dispositivo autorizado correctamente." if success else "Error al autorizar el dispositivo.")
-    else:
-        return render_template('index.html', message="Error al conectar al router.")
-
 @app.route('/block_device', methods=['POST'])
 def block_device():
     mac = request.form['mac_address']
-    try:
-        ssh = connect_router()
-        if ssh:
-            success = block_mac(ssh, mac)
-            ssh.close()
-            msg = "Dispositivo bloqueado exitosamente" if success else "Error al bloquear la MAC"
-            return render_template('index.html', message=msg)
-        else:
-            return render_template('index.html', message="Error al conectar al router.")
-    except Exception as e:
-        return render_template('index.html', message=f"Error: {e}")
+    success = bloquear_mac_desde_cli(mac)
+    msg = "✅ Dispositivo bloqueado exitosamente" if success else "❌ Error al bloquear la MAC"
+    return render_template('index.html', message=msg)
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0')
