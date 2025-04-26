@@ -10,21 +10,20 @@ def connect_router():
     ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
 
     try:
-        # Usamos el comando SSH con las opciones necesarias
+        # Intentamos conectar usando los parámetros correctos de Kex y Hostkey
         ssh.connect(
             '192.168.1.1',
             username='cisco',
             password='cisco',
             look_for_keys=False,  # No buscar claves en el sistema
-            allow_agent=False,    # Deshabilitar el uso del agente SSH
-            # Usar opciones específicas de conexión
-            disabled_algorithms={'kex': ['diffie-hellman-group1-sha1']},
-            # Alternativamente, con `paramiko` puedes hacer configuraciones como las siguientes:
-            hostkey_algo='ssh-rsa',  # Establecer el algoritmo de clave de host
-            key_exchange='diffie-hellman-group1-sha1',  # Algoritmo de intercambio de claves
-            cipher='aes128-cbc',  # Algoritmo de cifrado
-            auth_methods=['password']  # Método de autenticación
+            allow_agent=False     # Deshabilitar el uso del agente SSH
         )
+
+        # Aseguramos que las configuraciones de intercambio de claves sean las correctas
+        transport = ssh.get_transport()
+        transport.set_kex_algorithms(['diffie-hellman-group1-sha1'])
+        transport.set_host_key_algorithm('ssh-rsa')
+
         print("Conexión SSH establecida correctamente.")
         return ssh
     except Exception as e:
