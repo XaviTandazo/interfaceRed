@@ -1,3 +1,5 @@
+import pexpect
+
 def conectar_ssh():
     comando_ssh = (
         "ssh -o HostkeyAlgorithms=ssh-rsa "
@@ -13,14 +15,16 @@ def conectar_ssh():
         child.expect("password:")
         child.sendline("cisco")
 
-        # Espera hasta que se muestre el prompt del router (ej. R1#)
+        # Espera el prompt del router
         child.expect("#")
         print("✅ Conexión exitosa. Estás en el prompt del router.")
 
-        # Aquí podrías seguir enviando comandos si deseas
-        # Ejemplo: child.sendline("show version")
+        # Enviar comandos adicionales si quieres (ejemplo):
+        # child.sendline("show running-config")
+        # child.expect("#")
+        # print(child.before.decode())
 
-        # Finaliza la sesión
+        # Salir de la sesión
         child.sendline("exit")
         child.close()
 
