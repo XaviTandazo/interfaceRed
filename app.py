@@ -7,6 +7,11 @@ app = Flask(__name__)
 # Ruta donde guardaremos las MACs bloqueadas
 BLOCKED_MACS_FILE = os.path.join('static', 'blocked_macs.txt')
 
+# Crear el archivo bloqueados si no existe
+if not os.path.exists(BLOCKED_MACS_FILE):
+    with open(BLOCKED_MACS_FILE, 'w') as f:
+        pass
+
 # Función para bloquear una MAC (apagando la interfaz)
 def bloquear_mac_apagando_interfaz(mac_objetivo):
     comando_ssh = (
