@@ -31,7 +31,7 @@ def block_mac(ssh, mac):
         shell = ssh.invoke_shell()
 
         # Enviar comandos al router
-        shell.send("conf t\n")
+        shell.send("config t\n")
         shell.send(f"class-map match-any unwanted-pc\n")
         shell.send(f"match source-address mac {mac}\n")
         shell.send("exit\n")
