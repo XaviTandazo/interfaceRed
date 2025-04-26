@@ -12,14 +12,33 @@
 
         <!-- Formulario para bloquear un dispositivo -->
         <div class="mt-4">
-            <h3>Apagar interfaz de un dispositivo</h3>
-            <p>Ingresa la dirección MAC del dispositivo que quieres bloquear. El router detectará la interfaz y la apagará automáticamente.</p>
+            <h3>Bloquear un dispositivo (Apagar interfaz)</h3>
             <form action="/block_device" method="POST">
                 <div class="form-group">
-                    <label for="block_mac_address">Dirección MAC del dispositivo:</label>
+                    <label for="block_mac_address">Dirección MAC:</label>
                     <input type="text" class="form-control" id="block_mac_address" name="mac_address" required placeholder="Ejemplo: 0800.2788.a0bc">
                 </div>
-                <button type="submit" class="btn btn-danger">Apagar Interfaz</button>
+                <button type="submit" class="btn btn-danger">Bloquear MAC</button>
+            </form>
+        </div>
+
+        <!-- Formulario para permitir (desbloquear) un dispositivo -->
+        <div class="mt-4">
+            <h3>Permitir un dispositivo (Encender interfaz)</h3>
+            <form action="/allow_device" method="POST">
+                <div class="form-group">
+                    <label for="allow_mac_address">Dirección MAC:</label>
+                    <input type="text" class="form-control" id="allow_mac_address" name="mac_address" required placeholder="Ejemplo: 0800.2788.a0bc">
+                </div>
+                <button type="submit" class="btn btn-success">Permitir MAC</button>
+            </form>
+        </div>
+
+        <!-- Botón para ver la lista de MACs bloqueadas -->
+        <div class="mt-4">
+            <h3>Lista de dispositivos bloqueados</h3>
+            <form action="/blocked_list" method="GET">
+                <button type="submit" class="btn btn-primary">Ver MACs Bloqueadas</button>
             </form>
         </div>
 
