@@ -15,8 +15,8 @@
             <h3>Agregar un dispositivo autorizado</h3>
             <form action="/add_device" method="POST">
                 <div class="form-group">
-                    <label for="mac_address">Dirección MAC del dispositivo:</label>
-                    <input type="text" class="form-control" id="mac_address" name="mac_address" required placeholder="Ejemplo: 00:50:79:66:68:00">
+                    <label for="add_mac_address">Dirección MAC del dispositivo:</label>
+                    <input type="text" class="form-control" id="add_mac_address" name="mac_address" required placeholder="Ejemplo: 00:50:79:66:68:00">
                 </div>
                 <button type="submit" class="btn btn-success">Agregar</button>
             </form>
@@ -27,8 +27,8 @@
             <h3>Bloquear un dispositivo</h3>
             <form action="/block_device" method="POST">
                 <div class="form-group">
-                    <label for="mac_address">Dirección MAC del dispositivo a bloquear:</label>
-                    <input type="text" class="form-control" id="mac_address" name="mac_address" required placeholder="Ejemplo: 00:50:79:66:68:00">
+                    <label for="block_mac_address">Dirección MAC del dispositivo a bloquear:</label>
+                    <input type="text" class="form-control" id="block_mac_address" name="mac_address" required placeholder="Ejemplo: 00:50:79:66:68:00">
                 </div>
                 <button type="submit" class="btn btn-danger">Bloquear</button>
             </form>
