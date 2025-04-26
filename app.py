@@ -26,27 +26,33 @@ def block_mac(ssh, mac):
     try:
         mac = mac.replace(":", "")
         mac = '.'.join([mac[i:i+4] for i in range(0, len(mac), 4)])
-        channel = ssh.invoke_shell()
 
-        commands = [
-            "enable",
-            "conf t",
-            "class-map match-any unwanted-pc",
-            f"match source-address mac {mac}",
-            "exit",
-            "policy-map block",
-            "class unwanted-pc",
-            "drop",
-            "exit",
-            "interface FastEthernet1/0",
-            "service-policy input block",
-            "exit",
-            "end",
-            "write memory"
-        ]
+        # Crear un shell interactivo
+        shell = ssh.invoke_shell()
 
-        output = send_commands(channel, commands)
-        print(output)  # Para depuración
+        # Enviar comandos al router
+        shell.send("conf t\n")
+        shell.send(f"class-map match-any unwanted-pc\n")
+        shell.send(f"match source-address mac {mac}\n")
+        shell.send("exit\n")
+        shell.send("policy-map block\n")
+        shell.send("class unwanted-pc\n")
+        shell.send("drop\n")
+        shell.send("exit\n")
+        shell.send("interface FastEthernet1/0\n")
+        shell.send("service-policy input block\n")
+        shell.send("exit\n")
+        shell.send("end\n")
+        shell.send("write memory\n")
+
+        # Esperar un momento para que todos los comandos se ejecuten
+        import time
+        time.sleep(2)
+
+        # Leer la salida para depuración (opcional)
+        output = shell.recv(10000).decode()
+        print(output)
+
         return True
     except Exception as e:
         print(f"Error al bloquear la MAC: {e}")
