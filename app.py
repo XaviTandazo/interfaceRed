@@ -1,6 +1,6 @@
 import pexpect
 
-def bloquear_mac(mac_objetivo):
+def bloquear_mac_apagando_interfaz(mac_objetivo):
     comando_ssh = (
         "ssh -o HostkeyAlgorithms=ssh-rsa "
         "-o KexAlgorithms=diffie-hellman-group1-sha1 "
@@ -35,21 +35,15 @@ def bloquear_mac(mac_objetivo):
             child.sendline("exit")
             return
 
-        print(f"[✓] IP detectada para la MAC {mac_objetivo}: {ip_objetivo}")
+        print(f"[✓] IP detectada: {ip_objetivo}")
         print(f"[✓] Interfaz detectada: {interfaz_objetivo}")
 
-        # 3. Configurar ACL para bloquear la IP
+        # 3. Apagar la interfaz
         child.sendline("configure terminal")
         child.expect("#")
-        child.sendline("no access-list 101")  # Limpia ACL vieja si existe
-        child.sendline(f"access-list 101 deny ip host {ip_objetivo} any")
-        child.sendline("access-list 101 permit ip any any")
-
-        # 4. Aplicar ACL en la interfaz
         child.sendline(f"interface {interfaz_objetivo}")
-        child.sendline("ip access-group 101 in")
-
-        print(f"[✓] Acceso denegado para la IP {ip_objetivo} en la interfaz {interfaz_objetivo}")
+        child.sendline("shutdown")
+        print(f"[✓] Interfaz {interfaz_objetivo} apagada para bloquear la IP {ip_objetivo}")
 
         child.sendline("end")
         child.sendline("exit")
@@ -59,4 +53,4 @@ def bloquear_mac(mac_objetivo):
         print(f"[!] Error durante conexión o ejecución: {e}")
 
 # Ejemplo de uso
-bloquear_mac("0800.2788.a0bc")
+bloquear_mac_apagando_interfaz("0800.2788.a0bc")
