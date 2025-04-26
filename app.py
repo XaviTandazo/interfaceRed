@@ -2,11 +2,7 @@ import pexpect
 
 def conectar_al_router():
     ssh_command = (
-        "ssh -o HostkeyAlgorithms=ssh-rsa "
-        "-o KexAlgorithms=diffie-hellman-group1-sha1 "
-        "-o Ciphers=aes128-cbc "
-        "-o PreferredAuthentications=password "
-        "cisco@192.168.1.1"
+        "ssh -o HostkeyAlgorithms=ssh-rsa -o KexAlgorithms=diffie-hellman-group1-sha1 -o Ciphers=aes128-cbc -o PreferredAuthentications=password cisco@192.168.1.1"
     )
 
     try:
