@@ -1,33 +1,31 @@
 from flask import Flask, render_template, request, redirect, url_for
-import subprocess
+import pexpect
 
 app = Flask(__name__)
 
-# Función para formatear la MAC al formato Cisco (XXXX.XXXX.XXXX)
 def formatear_mac(mac):
     mac = mac.replace(":", "").replace("-", "").lower()
     return '.'.join([mac[i:i+4] for i in range(0, len(mac), 4)])
 
-# Función para ejecutar comandos en el router vía SSH usando subprocess
-def bloquear_mac_desde_cli(mac):
+def bloquear_mac_con_pexpect(mac):
     mac = formatear_mac(mac)
 
-    comandos = f"""
-config t
-class-map match-any unwanted-pc
-match source-address mac {mac}
-exit
-policy-map block
-class unwanted-pc
-drop
-exit
-interface FastEthernet1/0
-service-policy input block
-exit
-end
-write memory
-exit
-"""
+    comandos = [
+        "config t",
+        "class-map match-any unwanted-pc",
+        f"match source-address mac {mac}",
+        "exit",
+        "policy-map block",
+        "class unwanted-pc",
+        "drop",
+        "exit",
+        "interface FastEthernet1/0",
+        "service-policy input block",
+        "exit",
+        "end",
+        "write memory",
+        "exit"
+    ]
 
     ssh_command = (
         "ssh -o HostkeyAlgorithms=ssh-rsa "
@@ -38,25 +36,21 @@ exit
     )
 
     try:
-        process = subprocess.Popen(
-            ssh_command,
-            shell=True,
-            stdin=subprocess.PIPE,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True
-        )
+        child = pexpect.spawn(ssh_command, timeout=30)
+        child.expect("password:")
+        child.sendline("cisco")  # Aquí pones tu contraseña
 
-        output, error = process.communicate(input=comandos, timeout=20)
+        for cmd in comandos:
+            child.expect("#")  # Espera el prompt del router
+            child.sendline(cmd)
 
-        print("=== SALIDA DEL ROUTER ===")
-        print(output)
-        print("=== ERRORES ===")
-        print(error)
+        child.expect("#")
+        child.sendline("exit")
+        child.close()
 
-        return process.returncode == 0
+        return child.exitstatus == 0
     except Exception as e:
-        print(f"Error al ejecutar SSH: {e}")
+        print(f"Error al bloquear MAC: {e}")
         return False
 
 @app.route('/')
@@ -66,7 +60,7 @@ def index():
 @app.route('/block_device', methods=['POST'])
 def block_device():
     mac = request.form['mac_address']
-    success = bloquear_mac_desde_cli(mac)
+    success = bloquear_mac_con_pexpect(mac)
     msg = "✅ Dispositivo bloqueado exitosamente" if success else "❌ Error al bloquear la MAC"
     return render_template('index.html', message=msg)
 
