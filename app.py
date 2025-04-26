@@ -7,6 +7,10 @@ app = Flask(__name__)
 # Ruta donde guardaremos las MACs bloqueadas
 BLOCKED_MACS_FILE = os.path.join('static', 'blocked_macs.txt')
 
+# Crear carpeta 'static' si no existe
+if not os.path.exists('static'):
+    os.makedirs('static')
+
 # Crear el archivo bloqueados si no existe
 if not os.path.exists(BLOCKED_MACS_FILE):
     with open(BLOCKED_MACS_FILE, 'w') as f:
