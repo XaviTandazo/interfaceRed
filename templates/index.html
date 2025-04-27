@@ -40,15 +40,17 @@
             <form action="/blocked_list" method="GET">
                 <button type="submit" class="btn btn-primary">Ver MACs Bloqueadas</button>
             </form>
+
             {% if message %}
             <div class="alert {% if 'Error' in message %}alert-danger{% else %}alert-success{% endif %} mt-4">
                 {{ message }}
             </div>
             {% endif %}
+
             {% if blocked_macs %}
             <ul class="mt-4">
                 {% for mac in blocked_macs %}
-                <li>{{ mac }}</li>
+                    <li>{{ mac[0] }} - {{ mac[1] }}</li> <!-- Mostrar MAC e IP bloqueado -->
                 {% endfor %}
             </ul>
             {% endif %}
