@@ -48,9 +48,12 @@
             {% endif %}
 
             {% if blocked_macs %}
-            <ul class="mt-4">
-                {% for mac in blocked_macs %}
-                    <li>{{ mac[0] }} - {{ mac[1] }}</li> <!-- Mostrar MAC e IP bloqueado -->
+            <ul class="list-group mt-4">
+                {% for mac, ip in blocked_macs %}
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        <span><strong>MAC:</strong> {{ mac }}</span>
+                        <span><strong>IP:</strong> {{ ip }}</span>
+                    </li>
                 {% endfor %}
             </ul>
             {% endif %}
