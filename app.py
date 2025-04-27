@@ -1,11 +1,12 @@
 from flask import Flask, render_template, request, redirect, url_for
 import pexpect
 import os
+import csv
 
 app = Flask(__name__)
 
-# Ruta donde guardaremos las MACs bloqueadas
-BLOCKED_MACS_FILE = os.path.join('static', 'blocked_macs.txt')
+# Ruta donde guardaremos las MACs bloqueadas en formato CSV
+BLOCKED_MACS_FILE = os.path.join('static', 'blocked_macs.csv')
 
 # Crear carpeta 'static' si no existe
 if not os.path.exists('static'):
@@ -13,11 +14,12 @@ if not os.path.exists('static'):
 
 # Crear el archivo bloqueados si no existe
 if not os.path.exists(BLOCKED_MACS_FILE):
-    with open(BLOCKED_MACS_FILE, 'w') as f:
-        pass
+    with open(BLOCKED_MACS_FILE, 'w', newline='') as f:
+        writer = csv.writer(f)
+        writer.writerow(["MAC Address", "IP Address"])
 
-# Función para bloquear una MAC (apagando la interfaz)
-def bloquear_mac_apagando_interfaz(mac_objetivo):
+# Función para bloquear una MAC
+def bloquear_mac(mac_objetivo):
     comando_ssh = (
         "ssh -o HostkeyAlgorithms=ssh-rsa "
         "-o KexAlgorithms=diffie-hellman-group1-sha1 "
@@ -35,115 +37,82 @@ def bloquear_mac_apagando_interfaz(mac_objetivo):
         salida_arp = child.before.decode()
 
         ip_objetivo = None
-        interfaz_objetivo = None
+        mac_objetivo_formateada = mac_objetivo.replace(":", ".").lower()  # Formateamos la MAC a formato Cisco
         for linea in salida_arp.splitlines():
-            if mac_objetivo.lower() in linea.lower():
+            if mac_objetivo_formateada in linea.lower():
                 partes = linea.split()
                 ip_objetivo = partes[1]
-                interfaz_objetivo = partes[-1]
                 break
 
-        if not ip_objetivo or not interfaz_objetivo:
+        if not ip_objetivo:
             child.sendline("exit")
-            return f"No se encontró IP o interfaz para la MAC {mac_objetivo}"
+            return f"No se encontró IP para la MAC {mac_objetivo}"
 
+        # Registrar la MAC y su IP asociada en el archivo CSV
+        with open(BLOCKED_MACS_FILE, 'a', newline='') as f:
+            writer = csv.writer(f)
+            writer.writerow([mac_objetivo, ip_objetivo])
+
+        # Bloquear la MAC en la red (usando la IP)
         child.sendline("configure terminal")
         child.expect("#")
-        child.sendline(f"interface {interfaz_objetivo}")
-        child.sendline("shutdown")
-
+        child.sendline(f"ip access-list extended BLOCK_MAC")
+        child.sendline(f"deny ip host {ip_objetivo} any")
+        child.sendline("permit ip any any")
         child.sendline("end")
         child.sendline("exit")
-
-        # Registrar la MAC como bloqueada
-        with open(BLOCKED_MACS_FILE, 'a') as f:
-            f.write(mac_objetivo + '\n')
 
         return f"MAC {mac_objetivo} bloqueada correctamente."
 
     except Exception as e:
         return f"Error al bloquear MAC: {e}"
 
-# Función para permitir una MAC (encender la interfaz)
-def permitir_mac_encendiendo_interfaz(mac_objetivo):
-    comando_ssh = (
-        "ssh -o HostkeyAlgorithms=ssh-rsa "
-        "-o KexAlgorithms=diffie-hellman-group1-sha1 "
-        "-o Ciphers=aes128-cbc "
-        "-o PreferredAuthentications=password cisco@192.168.1.1"
-    )
+# Función para permitir una MAC (eliminando el bloqueo)
+def permitir_mac(mac_objetivo):
     try:
+        # Obtener IP asociada a la MAC desde el archivo CSV
+        ip_objetivo = None
+        with open(BLOCKED_MACS_FILE, 'r', newline='') as f:
+            reader = csv.reader(f)
+            for row in reader:
+                if row[0].lower() == mac_objetivo.lower():
+                    ip_objetivo = row[1]
+                    break
+
+        if not ip_objetivo:
+            return f"No se encontró la IP asociada a la MAC {mac_objetivo}"
+
+        comando_ssh = (
+            "ssh -o HostkeyAlgorithms=ssh-rsa "
+            "-o KexAlgorithms=diffie-hellman-group1-sha1 "
+            "-o Ciphers=aes128-cbc "
+            "-o PreferredAuthentications=password cisco@192.168.1.1"
+        )
         child = pexpect.spawn(comando_ssh, timeout=20)
         child.expect("password:")
         child.sendline("cisco")
         child.expect("#")
 
-        print("[✓] Conectado al router")
-
-        # 1. Ejecutar show arp
-        child.sendline("show arp")
-        child.expect("#")
-        salida_arp = child.before.decode()
-
-        ip_objetivo = None
-        interfaz_objetivo = None
-
-        for linea in salida_arp.splitlines():
-            if mac_objetivo.lower() in linea.lower():
-                partes = linea.split()
-                ip_objetivo = partes[1]
-                interfaz_objetivo = partes[-1]
-                break
-
-        if not interfaz_objetivo:
-            print("[!] No se encontró en ARP, buscando interfaces administrativamente down...")
-
-            # 2. Buscar interfaces DOWN
-            child.sendline("show ip interface brief")
-            child.expect("#")
-            salida_interfaces = child.before.decode()
-
-            interfaces_down = []
-            for linea in salida_interfaces.splitlines():
-                if "administratively down" in linea.lower():
-                    partes = linea.split()
-                    nombre_interfaz = partes[0]
-                    # Solo considerar interfaces Ethernet
-                    if nombre_interfaz.startswith("FastEthernet") or nombre_interfaz.startswith("GigabitEthernet"):
-                        interfaces_down.append(nombre_interfaz)
-
-            if not interfaces_down:
-                print("[!] No hay interfaces FastEthernet/GigabitEthernet apagadas. Nada que hacer.")
-                child.sendline("exit")
-                return
-
-            print(f"[✓] Interfaces Ethernet apagadas encontradas: {interfaces_down}")
-            
-            # Tomamos la primera (en este caso sería FastEthernet1/0)
-            interfaz_objetivo = interfaces_down[0]
-
-        # 3. Encender la interfaz
+        # Eliminar la regla de bloqueo para esa IP
         child.sendline("configure terminal")
         child.expect("#")
-        child.sendline(f"interface {interfaz_objetivo}")
-        child.sendline("no shutdown")
-        print(f"[✓] Interfaz {interfaz_objetivo} encendida")
-
-        # 4. Eliminar MAC del archivo bloqueado
-        if os.path.exists(BLOCKED_MACS_FILE):
-            with open(BLOCKED_MACS_FILE, 'r') as f:
-                macs = f.read().splitlines()
-            macs = [m for m in macs if m.lower() != mac_objetivo.lower()]
-            with open(BLOCKED_MACS_FILE, 'w') as f:
-                f.write('\n'.join(macs))
-            print(f"[✓] MAC {mac_objetivo} eliminada de la lista bloqueada")
-
+        child.sendline(f"no ip access-list extended BLOCK_MAC")
         child.sendline("end")
         child.sendline("exit")
-        print("[✓] Desconectado")
+
+        # Eliminar la MAC y su IP asociada del archivo CSV
+        with open(BLOCKED_MACS_FILE, 'r', newline='') as f:
+            rows = list(csv.reader(f))
+        with open(BLOCKED_MACS_FILE, 'w', newline='') as f:
+            writer = csv.writer(f)
+            for row in rows:
+                if row[0].lower() != mac_objetivo.lower():
+                    writer.writerow(row)
+
+        return f"MAC {mac_objetivo} permitida correctamente."
 
     except Exception as e:
-        print(f"[!] Error durante conexión o ejecución: {e}")
+        return f"Error al permitir MAC: {e}"
 
 # Rutas Flask
 
@@ -154,25 +123,25 @@ def index():
 @app.route('/block_device', methods=['POST'])
 def block_device():
     mac_address = request.form['mac_address']
-    message = bloquear_mac_apagando_interfaz(mac_address)
+    message = bloquear_mac(mac_address)
     return render_template('index.html', message=message)
 
 @app.route('/allow_device', methods=['POST'])
 def allow_device():
     mac_address = request.form['mac_address']
-    message = permitir_mac_encendiendo_interfaz(mac_address)
+    message = permitir_mac(mac_address)
     return render_template('index.html', message=message)
 
 @app.route('/blocked_list', methods=['GET'])
 def blocked_list():
+    blocked_macs = []
     if os.path.exists(BLOCKED_MACS_FILE):
-        with open(BLOCKED_MACS_FILE, 'r') as f:
-            macs = f.readlines()
-        macs = [mac.strip() for mac in macs if mac.strip()]
-    else:
-        macs = []
-
-    message = "MACs bloqueadas: " + (", ".join(macs) if macs else "Ninguna")
+        with open(BLOCKED_MACS_FILE, 'r', newline='') as f:
+            reader = csv.reader(f)
+            next(reader)  # Saltar el encabezado
+            for row in reader:
+                blocked_macs.append(f"MAC: {row[0]} - IP: {row[1]}")
+    message = "Dispositivos bloqueados: " + (", ".join(blocked_macs) if blocked_macs else "Ninguno")
     return render_template('index.html', message=message)
 
 if __name__ == "__main__":

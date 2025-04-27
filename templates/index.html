@@ -16,7 +16,7 @@
             <form action="/block_device" method="POST">
                 <div class="form-group">
                     <label for="block_mac_address">Dirección MAC:</label>
-                    <input type="text" class="form-control" id="block_mac_address" name="mac_address" required placeholder="Ejemplo: 0800.2788.a0bc">
+                    <input type="text" class="form-control" id="block_mac_address" name="mac_address" required placeholder="Ejemplo: 0011.2233.4455">
                 </div>
                 <button type="submit" class="btn btn-danger">Bloquear MAC</button>
             </form>
@@ -28,7 +28,7 @@
             <form action="/allow_device" method="POST">
                 <div class="form-group">
                     <label for="allow_mac_address">Dirección MAC:</label>
-                    <input type="text" class="form-control" id="allow_mac_address" name="mac_address" required placeholder="Ejemplo: 0800.2788.a0bc">
+                    <input type="text" class="form-control" id="allow_mac_address" name="mac_address" required placeholder="Ejemplo: 0011.2233.4455">
                 </div>
                 <button type="submit" class="btn btn-success">Permitir MAC</button>
             </form>
@@ -40,14 +40,20 @@
             <form action="/blocked_list" method="GET">
                 <button type="submit" class="btn btn-primary">Ver MACs Bloqueadas</button>
             </form>
+            {% if message %}
+            <div class="alert {% if 'Error' in message %}alert-danger{% else %}alert-success{% endif %} mt-4">
+                {{ message }}
+            </div>
+            {% endif %}
+            {% if blocked_macs %}
+            <ul class="mt-4">
+                {% for mac in blocked_macs %}
+                <li>{{ mac }}</li>
+                {% endfor %}
+            </ul>
+            {% endif %}
         </div>
 
-        <!-- Mostrar mensajes de estado -->
-        {% if message %}
-        <div class="alert {% if 'Error' in message %}alert-danger{% else %}alert-success{% endif %} mt-4">
-            {{ message }}
-        </div>
-        {% endif %}
     </div>
 
     <!-- Scripts al final para mejorar el rendimiento -->
