@@ -47,11 +47,15 @@ def actualizar_interfaces_ips():
         for linea in salida.splitlines()[2:]:  # Saltamos cabeceras
             if not linea.strip():
                 continue
+
+            # Extraemos la interface y la IP
             partes = linea.split()
             interfaz = partes[0]
-            ip = partes[1]
+            ip = partes[1] if partes[1] != "unassigned" else "unassigned"
+            
             interfaces.append((interfaz, ip))
 
+        # Guardamos las interfaces y IPs en el archivo
         with open(INTERFACES_IPS_FILE, 'w', newline='') as f:
             writer = csv.writer(f)
             writer.writerow(['interface', 'ip_address'])
@@ -60,6 +64,7 @@ def actualizar_interfaces_ips():
         child.sendline("exit")
     except Exception as e:
         print(f"Error actualizando interfaces: {e}")
+
 
 # Función para buscar la interfaz correspondiente a una IP
 def encontrar_interfaz_por_ip(ip_objetivo):
