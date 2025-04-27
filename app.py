@@ -44,16 +44,26 @@ def actualizar_interfaces_ips():
         salida = child.before.decode()
 
         interfaces = []
-        for linea in salida.splitlines()[2:]:  # Saltamos cabeceras
-            if not linea.strip():
+        lines = salida.splitlines()
+
+        # Saltamos las primeras dos líneas (cabecera) y procesamos desde la línea 3
+        for linea in lines[2:]:
+            if not linea.strip():  # Saltamos las líneas vacías
                 continue
 
-            # Extraemos la interface y la IP
+            # Eliminamos espacios extra al inicio y final de la línea
+            linea = linea.strip()
+
+            # Buscamos el primer espacio para extraer la interfaz
             partes = linea.split()
-            interfaz = partes[0]
-            ip = partes[1] if partes[1] != "unassigned" else "unassigned"
-            
-            interfaces.append((interfaz, ip))
+
+            # Verificamos que haya al menos dos partes: interfaz y IP
+            if len(partes) >= 2:
+                interfaz = partes[0]
+                ip = partes[1] if partes[1] != "unassigned" else "unassigned"
+
+                # Guardamos la interfaz y la IP en la lista
+                interfaces.append((interfaz, ip))
 
         # Guardamos las interfaces y IPs en el archivo
         with open(INTERFACES_IPS_FILE, 'w', newline='') as f:
