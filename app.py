@@ -122,6 +122,7 @@ def bloquear_trafico_ip(mac_objetivo, ip_objetivo):
     except Exception as e:
         return f"Error al bloquear tráfico: {e}"
 
+
 # Función para permitir tráfico (eliminar la regla de bloqueo)
 def permitir_trafico_ip(mac_objetivo, ip_objetivo):
     try:
