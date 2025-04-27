@@ -94,24 +94,37 @@ def bloquear_trafico_ip(mac_objetivo, ip_objetivo):
     try:
         child = crear_conexion_ssh()
 
+        # Entra en modo de configuración global
         child.sendline("configure terminal")
         child.expect("#")
 
-        # Crear ACL 100 si no existe
-        child.sendline("ip access-list extended 100")
-        child.sendline(f"deny ip host {ip_objetivo} any")
-        child.sendline("permit ip any any")
-        child.sendline("exit")
+        # Verifica si ACL 100 ya existe, si no, la crea
+        child.sendline("show access-lists")
+        child.expect("#")
+        salida = child.before.decode()
 
-        # Encontrar interfaz correcta
+        if "100" not in salida:
+            child.sendline("ip access-list extended 100")
+            child.expect("#")
+            child.sendline(f"deny ip host {ip_objetivo} any")
+            child.sendline("permit ip any any")
+            child.sendline("exit")
+            child.expect("#")
+        
+        # Encuentra la interfaz correcta para la IP objetivo
         interfaz = encontrar_interfaz_por_ip(ip_objetivo)
         if interfaz:
             child.sendline(f"interface {interfaz}")
             child.sendline("ip access-group 100 in")
             child.sendline("exit")
+            child.expect("#")
+        else:
+            return f"No se encontró la interfaz para la IP {ip_objetivo}."
 
+        # Aplica los cambios y termina la sesión
         child.sendline("end")
         child.sendline("exit")
+        child.expect("#")
 
         # Registrar MAC e IP bloqueadas
         with open(BLOCKED_MACS_FILE, 'a', newline='') as f:
@@ -121,7 +134,6 @@ def bloquear_trafico_ip(mac_objetivo, ip_objetivo):
         return f"Tráfico de {ip_objetivo} bloqueado en {interfaz}."
     except Exception as e:
         return f"Error al bloquear tráfico: {e}"
-
 
 # Función para permitir tráfico (eliminar la regla de bloqueo)
 def permitir_trafico_ip(mac_objetivo, ip_objetivo):
